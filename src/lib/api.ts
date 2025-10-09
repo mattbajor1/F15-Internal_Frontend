@@ -1,52 +1,105 @@
 // src/lib/api.ts
-export function apiBase() {
-  // Prefer explicit emulator URL from .env
-  const emu = import.meta.env.VITE_FUNCTIONS_EMULATOR?.replace(/\/$/, "")
-  if (emu) return emu
-  // Dev safeguard: if running locally and no env set, default to emulator
-  if (location.hostname === "localhost" || location.hostname === "127.0.0.1") {
-    return "http://127.0.0.1:5001/f15-internal/us-central1"
+import { getAuth } from 'firebase/auth';
+
+/** Figure out the base once. */
+export const API_BASE =
+  (import.meta.env.VITE_API_BASE as string) ??
+  (import.meta.env.VITE_FUNCTIONS_EMULATOR
+    ? `${import.meta.env.VITE_FUNCTIONS_EMULATOR}/api`
+    : '/api');
+
+// Keep the old name around just in case some files import it.
+export const apiBase = API_BASE;
+
+/** Join helper that accepts absolute URLs too. */
+export function absolute(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
+  const p = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE}${p}`;
+}
+
+/** Build a RequestInit with cookies + optional bearer (auto) */
+async function buildInit(
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+  body?: unknown
+): Promise<RequestInit> {
+  const headers = new Headers();
+  headers.set('Content-Type', 'application/json');
+
+  // Add bearer if we have a user (helps during local dev and also fine in prod).
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (user) {
+      const token = await user.getIdToken(/* forceRefresh */ false);
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+  } catch {
+    // ignore if auth isn't initialized yet
   }
-  // Production (on Hosting): use rewrites /api/** -> function
-  return ""
+
+  const init: RequestInit = {
+    method,
+    headers,
+    credentials: 'include', // send/receive __session cookie
+  };
+  if (body !== undefined) init.body = JSON.stringify(body);
+  return init;
 }
 
-async function authHeader(): Promise<HeadersInit> {
-  const { auth } = await import("../firebase")
-  const u = auth.currentUser
-  const h: HeadersInit = { "Content-Type": "application/json" }
-  if (u) h["Authorization"] = `Bearer ${await u.getIdToken()}`
-  return h
+/** Uniform response handling */
+async function asJson<T>(res: Response): Promise<T> {
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = await res.text();
+      try {
+        const parsed = JSON.parse(detail);
+        // try to surface { error: ... }
+        throw new Error(`${res.status} ${res.statusText}: ${parsed.error ?? detail}`);
+      } catch {
+        throw new Error(`${res.status} ${res.statusText}: ${detail}`);
+      }
+    } catch {
+      throw new Error(`${res.status} ${res.statusText}`);
+    }
+  }
+  if (res.status === 204) return undefined as unknown as T;
+  return (await res.json()) as T;
 }
 
+/** ---------- Public helpers (named) ---------- */
 export async function getJSON<T>(path: string): Promise<T> {
-  const headers = await authHeader()
-  const base = apiBase()
-  const url = base + path
-  console.log("API BASE =", base, "→", url)  // <- debug
-  const res = await fetch(url, { headers })
-  const text = await res.text()
-  try {
-    const json = JSON.parse(text)
-    if (!res.ok) throw new Error((json as any)?.error || res.statusText)
-    return json as T
-  } catch {
-    throw new Error(`${res.status} ${res.statusText} from ${url}: ${text.slice(0, 120)}...`)
-  }
+  const res = await fetch(absolute(path), await buildInit('GET'));
+  return asJson<T>(res);
+}
+export const getJson = getJSON; // alias for older imports
+
+export async function postJSON<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(absolute(path), await buildInit('POST', body));
+  return asJson<T>(res);
 }
 
-export async function postJSON<T>(path: string, body: any): Promise<T> {
-  const headers = await authHeader()
-  const base = apiBase()
-  const url = base + path
-  console.log("API BASE =", base, "→", url)  // <- debug
-  const res = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) })
-  const text = await res.text()
-  try {
-    const json = JSON.parse(text)
-    if (!res.ok) throw new Error((json as any)?.error || res.statusText)
-    return json as T
-  } catch {
-    throw new Error(`${res.status} ${res.statusText} from ${url}: ${text.slice(0, 120)}...`)
-  }
+export async function patchJSON<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(absolute(path), await buildInit('PATCH', body));
+  return asJson<T>(res);
 }
+
+export async function del(path: string): Promise<void> {
+  const res = await fetch(absolute(path), await buildInit('DELETE'));
+  await asJson<void>(res);
+}
+export const delJSON = del; // alias for older imports
+
+/** Default export (so imports like `import api from '../lib/api'` still work) */
+const api = {
+  base: API_BASE,
+  absolute,
+  getJSON,
+  getJson,
+  postJSON,
+  patchJSON,
+  del,
+  delJSON,
+};
+export default api;

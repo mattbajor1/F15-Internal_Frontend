@@ -1,68 +1,101 @@
+import { useEffect, useState } from 'react';
+import { api } from '../lib/api';
 
-import { useEffect, useState } from 'react'
-import { getJSON, postJSON } from '../lib/api'
-import { Link } from 'react-router-dom'
-import type { Project } from '../types'
+type Project = {
+  id: string;
+  name: string;
+  status?: string;
+  createdAt?: any;
+};
 
-export default function Projects() {
-  const [items, setItems] = useState<Project[]>([])
-  const [err, setErr] = useState<string | null>(null)
-  const [name, setName] = useState('')
-  const [status, setStatus] = useState<Project['status']>('Planning')
-  const [dueDate, setDueDate] = useState('')
+export default function ProjectsPage() {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
 
-  useEffect(() => {
-    getJSON<{projects: Project[]}>('/api/projects')
-      .then(res => setItems(res.projects))
-      .catch(e => setErr(String(e)))
-  }, [])
+  // form state
+  const [name, setName] = useState('');
+  const [desc, setDesc] = useState('');
 
-  async function createProject() {
+  async function load() {
     try {
-      const res = await postJSON<{project: Project}>('/api/projects', { name, status, dueDate })
-      setItems(prev => [res.project, ...prev])
-      setName(''); setDueDate(''); setStatus('Planning')
-    } catch (e:any) {
-      setErr(String(e))
+      setErr(null);
+      setLoading(true);
+      const { projects } = await api.listProjects();
+      setProjects(projects as Project[]);
+    } catch (e: any) {
+      setErr(e.message || String(e));
+    } finally {
+      setLoading(false);
     }
   }
 
-  return (
-    <div className="shell grid">
-      <h2>Projects</h2>
-      <div className="card grid" style={{ gridTemplateColumns: '1fr 200px 200px auto', alignItems:'end' }}>
-        <div>
-          <label>Name</label>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Project name"/>
-        </div>
-        <div>
-          <label>Status</label>
-          <select value={status} onChange={e=>setStatus(e.target.value as any)}>
-            <option>Planning</option><option>Active</option><option>On Hold</option><option>Complete</option>
-          </select>
-        </div>
-        <div>
-          <label>Due date</label>
-          <input type="date" value={dueDate} onChange={e=>setDueDate(e.target.value)} />
-        </div>
-        <div>
-          <button className="btn primary" onClick={createProject} disabled={!name}>Create</button>
-        </div>
-      </div>
+  useEffect(() => {
+    load();
+  }, []);
 
-      {!items.length ? <p className="muted">No projects found.</p> : (
-        <div className="grid" style={{ gridTemplateColumns:'repeat(auto-fill, minmax(260px, 1fr))' }}>
-          {items.map(p => (
-            <Link key={p.id} to={`/projects/${p.id}`} className="card" style={{ textDecoration:'none', color:'inherit' }}>
-              <div className="row" style={{ justifyContent:'space-between' }}>
-                <h3 style={{ margin:0 }}>{p.name}</h3>
-                <span className="pill">{p.status}</span>
+  async function createProject(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+
+    try {
+      await api.createProject({
+        name: name.trim(),
+        description: desc.trim(),
+      });
+      setName('');
+      setDesc('');
+      await load();
+    } catch (e: any) {
+      alert(`Create failed: ${e.message || e}`);
+    }
+  }
+
+  if (loading) return <div className="p-6">Loading projects…</div>;
+  if (err) return <div className="p-6 text-red-600">Error: {err}</div>;
+
+  return (
+    <div className="p-6 space-y-8">
+      <form onSubmit={createProject} className="space-y-3">
+        <h2 className="text-xl font-semibold">Create new project</h2>
+        <input
+          className="border rounded px-3 py-2 w-full"
+          placeholder="Project name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <textarea
+          className="border rounded px-3 py-2 w-full"
+          placeholder="Description (optional)"
+          value={desc}
+          onChange={(e) => setDesc(e.target.value)}
+        />
+        <button
+          className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
+          disabled={!name.trim()}
+          type="submit"
+        >
+          Create
+        </button>
+      </form>
+
+      <div>
+        <h2 className="text-xl font-semibold mb-3">Your projects</h2>
+        {projects.length === 0 ? (
+          <div className="text-gray-500">No projects yet.</div>
+        ) : (
+          <div className="grid gap-3">
+            {projects.map((p) => (
+              <div key={p.id} className="border rounded p-4">
+                <div className="font-medium">{p.name}</div>
+                <div className="text-sm text-gray-600">
+                  {p.status ?? 'planning'}
+                </div>
               </div>
-              {p.dueDate && <div className="muted">Due {new Date(p.dueDate).toLocaleDateString()}</div>}
-            </Link>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </div>
-  )
+  );
 }
