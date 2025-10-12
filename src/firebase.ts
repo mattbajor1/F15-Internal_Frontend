@@ -1,5 +1,5 @@
-import { initializeApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut, type User } from 'firebase/auth'
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -8,27 +8,18 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+// Use emulators only in dev if explicitly asked
+const useEmu = import.meta.env.DEV && !!import.meta.env.VITE_FUNCTIONS_EMULATOR;
+if (useEmu) {
+  try {
+    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  } catch {}
 }
 
-// DEBUG: verify what's actually loaded at runtime
-console.log('FIREBASE CONFIG →', {
-  projectId: firebaseConfig.projectId,
-  authDomain: firebaseConfig.authDomain,
-  apiKeyPrefix: (firebaseConfig.apiKey || '').slice(0, 6) // just first 6 chars
-})
-
-const app = initializeApp(firebaseConfig)
-export const auth = getAuth(app)
-export const provider = new GoogleAuthProvider()
-
-export async function signInWithGoogle() {
-  await signInWithPopup(auth, provider)
-}
-
-export function watchAuth(cb: (u: User | null)=>void) {
-  return onAuthStateChanged(auth, cb)
-}
-
-export async function logout() {
-  await signOut(auth)
-}
+export { app, auth };
+export default app;

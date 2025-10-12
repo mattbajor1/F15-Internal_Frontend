@@ -15,7 +15,7 @@ export default function Inventory() {
 
   async function refresh() {
     try {
-      const res = await getJSON<{items: InventoryItem[]}>('/api/inventory')
+      const res = await getJSON<{items: InventoryItem[]}>('/inventory')
       setItems(res.items)
     } catch (e:any) {
       setErr(String(e))

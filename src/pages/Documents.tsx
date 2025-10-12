@@ -13,13 +13,13 @@ export default function Documents() {
   const [err, setErr] = useState<string | null>(null)
 
   useEffect(() => {
-    getJSON<{projects: ProjectLite[]}>('/api/projects?view=lite').then(res => setProjects(res.projects)).catch(e => setErr(String(e)))
+    getJSON<{projects: ProjectLite[]}>('/projects?view=lite').then(res => setProjects(res.projects)).catch(e => setErr(String(e)))
   }, [])
 
   async function loadDocs(pid: string) {
     setSelected(pid)
     try{
-      const res = await getJSON<{documents: Doc[]}>(`/api/projects/${pid}/documents`)
+      const res = await getJSON<{documents: Doc[]}>(`/projects/${pid}/documents`)
       setDocs(res.documents)
     } catch(e:any) { setErr(String(e)) }
   }
@@ -27,12 +27,12 @@ export default function Documents() {
   async function upload() {
     if (!selected || !file) return
     try {
-      const meta = await postJSON<{ uploadUrl:string; storagePath:string }>(`/api/projects/${selected}/documents/upload-url`, {
+      const meta = await postJSON<{ uploadUrl:string; storagePath:string }>(`/projects/${selected}/documents/upload-url`, {
         fileName: file.name,
         contentType: file.type || 'application/octet-stream'
       })
       await fetch(meta.uploadUrl, { method:'PUT', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file })
-      await postJSON(`/api/projects/${selected}/documents`, { name: file.name, storagePath: meta.storagePath })
+      await postJSON(`/projects/${selected}/documents`, { name: file.name, storagePath: meta.storagePath })
       await loadDocs(selected)
       setFile(null)
     } catch (e:any) {

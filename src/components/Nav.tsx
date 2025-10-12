@@ -1,20 +1,17 @@
-
-import { Link, useLocation } from 'react-router-dom'
-import { logout } from '../firebase'
+import { Link } from 'react-router-dom'
+import { watchAuth, logout } from '../hooks/useAuth'
 
 export default function Nav() {
-  const { pathname } = useLocation()
-  const link = (to:string, label:string) => (
-    <Link to={to} style={{ fontWeight: pathname===to ? 700 : 400 }}>{label}</Link>
-  )
   return (
-    <nav style={{ display:'flex', gap:16, padding:12, borderBottom:'1px solid #eee', background:'#fff', position:'sticky', top:0, zIndex:10 }}>
-      {link('/', 'Dashboard')}
-      {link('/projects', 'Projects')}
-      {link('/inventory', 'Inventory')}
-      {link('/documents', 'Documents')}
-      {link('/marketing/assistant', 'AI Marketing')}
-      <span style={{ marginLeft:'auto' }}><button className="btn" onClick={logout}>Log out</button></span>
+    <nav style={{ display:'flex', gap:12, padding:12, borderBottom:'1px solid #eee', alignItems:'center' }}>
+      <Link to="/">Dashboard</Link>
+      <Link to="/projects">Projects</Link>
+      <Link to="/inventory">Inventory</Link>
+      <Link to="/documents">Documents</Link>
+      <Link to="/ai">AI Marketing</Link>
+      <div style={{ marginLeft:'auto' }}>
+        <button onClick={logout}>Log out</button>
+      </div>
     </nav>
   )
 }

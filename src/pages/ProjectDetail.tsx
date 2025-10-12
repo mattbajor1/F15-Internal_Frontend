@@ -16,7 +16,7 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     if (!id) return
-    getJSON<{project: Project}>(`/api/projects/${id}`).then(res => setProject(res.project)).catch(e => setErr(String(e)))
+    getJSON<{project: Project}>(`/projects/${id}`).then(res => setProject(res.project)).catch(e => setErr(String(e)))
   }, [id])
 
   const setTab = (t:Tab) => { params.set('tab', t); setParams(params, { replace:true }) }
@@ -87,20 +87,20 @@ function TasksTab({ projectId }: { projectId: string }) {
   const [dueDate, setDueDate] = useState('')
 
   useEffect(() => {
-    getJSON<{tasks: Task[]}>(`/api/projects/${projectId}/tasks`)
+    getJSON<{tasks: Task[]}>(`/projects/${projectId}/tasks`)
       .then(res => setTasks(res.tasks)).catch(e => setErr(String(e)))
   }, [projectId])
 
   async function addTask() {
     try {
-      const res = await postJSON<{ task: Task }>(`/api/projects/${projectId}/tasks`, { title, stage, dueDate })
+      const res = await postJSON<{ task: Task }>(`/projects/${projectId}/tasks`, { title, stage, dueDate })
       setTasks(prev => [res.task, ...prev]); setTitle(''); setDueDate(''); setStage('Pre-production')
     } catch (e:any) { setErr(String(e)) }
   }
 
   async function toggle(t: Task) {
     try {
-      const res = await postJSON<{ task: Task }>(`/api/projects/${projectId}/tasks/${t.id}`, { status: t.status === 'Done' ? 'Open' : 'Done' })
+      const res = await postJSON<{ task: Task }>(`/projects/${projectId}/tasks/${t.id}`, { status: t.status === 'Done' ? 'Open' : 'Done' })
       setTasks(prev => prev.map(x => x.id===t.id ? res.task : x))
     } catch (e:any) { setErr(String(e)) }
   }
@@ -147,7 +147,7 @@ function EquipmentTab({ projectId }: { projectId: string }) {
   const [err, setErr] = useState<string | null>(null)
 
   useEffect(() => {
-    getJSON<{items: InventoryItem[]}>(`/api/projects/${projectId}/equipment`)
+    getJSON<{items: InventoryItem[]}>(`/projects/${projectId}/equipment`)
       .then(res => setItems(res.items)).catch(e => setErr(String(e)))
   }, [projectId])
 
@@ -174,7 +174,7 @@ function MarketingTab({ projectId }: { projectId: string }) {
   const [err, setErr] = useState<string | null>(null)
 
   useEffect(() => {
-    getJSON<{posts: MarketingPost[]}>(`/api/projects/${projectId}/marketing`)
+    getJSON<{posts: MarketingPost[]}>(`/projects/${projectId}/marketing`)
       .then(res => setPosts(res.posts)).catch(e => setErr(String(e)))
   }, [projectId])
 
@@ -206,7 +206,7 @@ function InvoicingTab({ projectId }: { projectId: string }) {
   const [err, setErr] = useState<string | null>(null)
 
   useEffect(() => {
-    getJSON<{invoices: Invoice[]}>(`/api/projects/${projectId}/invoices`)
+    getJSON<{invoices: Invoice[]}>(`/projects/${projectId}/invoices`)
       .then(res => setInvoices(res.invoices)).catch(e => setErr(String(e)))
   }, [projectId])
 

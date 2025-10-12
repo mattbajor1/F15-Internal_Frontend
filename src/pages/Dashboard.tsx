@@ -8,7 +8,7 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [err, setErr] = useState<string | null>(null)
   useEffect(() => {
-    getJSON<DashboardData>('/api/dashboard').then(setData).catch(e => setErr(String(e)))
+    getJSON<DashboardData>('/dashboard').then(setData).catch(e => setErr(String(e)))
   }, [])
   if (err) return <div className="shell"><p style={{ color:'crimson' }}>{err}</p></div>
   if (!data) return <div className="shell"><p>Loading...</p></div>
